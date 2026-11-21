@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#059669">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="طلبية الكشك">
+    <title>طلبية خردوات كشك ريال قرينز/أمجد</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: contain;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: scale(0.96) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .card-animate {
+            animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes pulsePin {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.75); }
+            50% { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+        }
+        .shelf-pin {
+            animation: pulsePin 1.6s infinite;
+        }
+        .promo-card-shine {
+            background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 60%);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 240px;
+            max-height: 280px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 270px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-stone-100 text-stone-900 min-h-[100dvh] flex flex-col select-none">
+
+    <!-- Chosen Palette: Warm Stone & Emerald Harmony (bg-stone-100, white cards, emerald-600 primary actions, amber-500 suggestions, rose-600 skip) -->
+    <!-- Application Structure Plan: A multi-view Single Page Application (SPA) tailored for fast retail restocking and inventory oversight. View 1 ("الجرد السريع"): Full-screen single-item flashcard workflow with large "أحتاجه" / "لا أحتاجه" touch targets, integrated color/variant selectors, and automatic shelf-photo cropping. View 2 ("تصفح الفئات"): Filterable & searchable structured catalog grouped by the 11 organized categories with instant toggle/quantity controls. View 3 ("ملخص وتحليل الطلبية"): Interactive Chart.js dashboard visualizing category distribution and selection ratios, plus quick WhatsApp export formatted specifically for "طلبية خردوات كشك ريال قرينز/أمجد". -->
+    <!-- Visualization & Content Choices: 1. Full-screen Interactive Card -> Goal: Rapid sequential decision making -> HTML/Tailwind + JS state -> Instant auto-advance & variant chips. 2. Category Breakdown Horizontal Bar Chart -> Goal: Compare total items vs. selected restock items per category -> Chart.js Canvas -> Dynamic updates on item selection. 3. Selection Status Donut Chart -> Goal: Inform overall order completion ratio -> Chart.js Canvas -> Live percentage & count summary. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <header class="bg-white border-b border-stone-200 px-3 sm:px-4 py-2.5 shrink-0 shadow-xs sticky top-0 z-30">
+        <div class="max-w-2xl mx-auto">
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-xl bg-emerald-600 text-white font-black text-lg flex items-center justify-center shadow-xs">📦</span>
+                    <div>
+                        <h1 class="text-sm sm:text-base font-black text-stone-800 leading-tight">طلبية خردوات كشك ريال قرينز/أمجد</h1>
+                        <span id="progressCounter" class="text-xs font-bold text-stone-500">صنف 1 من 119</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                    <button type="button" id="installAppBtn" onclick="installPWA()" class="hidden px-2.5 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 font-extrabold text-xs">
+                        📲 تثبيت
+                    </button>
+                    <button type="button" onclick="openAddModal()" class="px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 font-extrabold text-xs" title="إضافة صنف جديد">
+                        ➕ صنف
+                    </button>
+                    <button type="button" onclick="openShelfPhotoModal()" class="px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 active:scale-95 text-sky-700 font-extrabold text-xs" title="قص تلقائي من صورة الرف">
+                        ✂️ قص صورة
+                    </button>
+                    <button type="button" onclick="resetAll()" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-600 font-extrabold text-xs" title="البدء من الأول">
+                        ↺ إعادة
+                    </button>
+                </div>
+            </div>
+
+            <!-- شريط التنقل بين أوضاع التطبيق -->
+            <nav class="grid grid-cols-3 gap-1.5 bg-stone-100 p-1 rounded-2xl border border-stone-200">
+                <button type="button" id="navBtn-cards" onclick="switchView('cards')" class="py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition bg-white text-emerald-700 shadow-xs">
+                    ⚡ الجرد السريع
+                </button>
+                <button type="button" id="navBtn-catalog" onclick="switchView('catalog')" class="py-2 px-2 rounded-xl text-xs sm:text-sm font-extrabold transition text-stone-600 hover:text-stone-900">
+                    📋 القائمة المرتبة
+                </button>
+                <button type="button" id="navBtn-analytics" onclick="switchView('analytics')" class="py-2 px-2 rounded-xl text-xs sm:text-sm font-extrabold transition text-stone-600 hover:text-stone-900">
+                    📊 تحليل الطلبية
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- العرض الأول: الجرد السريع بملء الشاشة -->
+    <main id="view-cards" class="flex-1 flex flex-col justify-between max-w-2xl w-full mx-auto p-3 sm:p-4 overflow-hidden">
+        <div class="w-full mb-2">
+            <div class="flex items-center justify-between text-xs font-extrabold text-stone-600 mb-1">
+                <button type="button" onclick="prevItem()" id="prevBtn" class="px-3 py-1 rounded-lg bg-white border border-stone-200 hover:bg-stone-50 disabled:opacity-40 text-stone-700">
+                    → السابق
+                </button>
+                <span id="categoryBadge" class="bg-stone-200/80 text-stone-700 px-3 py-1 rounded-full">1. الصيدلية والعناية الشخصية</span>
+                <span id="progressPercentText" class="text-emerald-700 font-black">1%</span>
+            </div>
+            <div class="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
+                <div id="progressBar" class="bg-emerald-600 h-full transition-all duration-300 rounded-full" style="width: 1%"></div>
+            </div>
+        </div>
+
+        <div id="cardStage" class="flex-1 flex flex-col justify-center min-h-0 my-1"></div>
+
+        <div id="actionButtonsContainer" class="grid grid-cols-2 gap-3 sm:gap-4 pt-2 pb-1 shrink-0">
+            <button type="button" onclick="chooseNeed(true)" class="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] text-white rounded-3xl py-4 sm:py-5 px-4 shadow-lg shadow-emerald-600/20 flex flex-col items-center justify-center gap-0.5 transition cursor-pointer border-b-4 border-emerald-800">
+                <span class="text-2xl sm:text-3xl leading-none">✓</span>
+                <span class="text-2xl sm:text-3xl font-black tracking-wide">أحتاجه</span>
+            </button>
+
+            <button type="button" onclick="chooseNeed(false)" class="bg-white hover:bg-rose-50 active:scale-[0.97] text-rose-600 border-2 border-rose-200 rounded-3xl py-4 sm:py-5 px-4 shadow-md flex flex-col items-center justify-center gap-0.5 transition cursor-pointer border-b-4 border-b-rose-300">
+                <span class="text-2xl sm:text-3xl leading-none">✕</span>
+                <span class="text-2xl sm:text-3xl font-black tracking-wide">لا أحتاجه</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- العرض الثاني: القائمة المرتبة والتصفية حسب الفئة -->
+    <section id="view-catalog" class="hidden flex-1 max-w-2xl w-full mx-auto p-3 sm:p-4 space-y-4 pb-24">
+        <div class="bg-white rounded-3xl p-4 border border-stone-200 shadow-xs space-y-3">
+            <p class="text-xs sm:text-sm text-stone-600 font-bold leading-relaxed">
+                يعرض هذا القسم جميع أصناف الكشك الـ 119 مقسمة إلى 11 فئة مرتبة، مع إمكانية البحث السريع، تصفية الفئات، وتحديد الألوان والكميات مباشرة.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input type="text" id="catalogSearch" oninput="renderCatalog()" placeholder="🔍 ابحث باسم الصنف أو الماركة..." class="w-full bg-stone-100 border border-stone-200 rounded-xl px-3.5 py-2.5 text-sm font-bold outline-none focus:border-emerald-500 focus:bg-white">
+                <select id="catalogCategoryFilter" onchange="renderCatalog()" class="w-full bg-stone-100 border border-stone-200 rounded-xl px-3.5 py-2.5 text-sm font-extrabold text-stone-700 outline-none focus:border-emerald-500 focus:bg-white">
+                    <option value="ALL">جميع الفئات (11 فئة)</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+                <button type="button" onclick="setCatalogStatusFilter('ALL')" id="filterStatus-ALL" class="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-stone-800 text-white">الكل</button>
+                <button type="button" onclick="setCatalogStatusFilter('SELECTED')" id="filterStatus-SELECTED" class="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-stone-100 text-stone-700">المطلوب فقط</button>
+                <button type="button" onclick="setCatalogStatusFilter('UNSELECTED')" id="filterStatus-UNSELECTED" class="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-stone-100 text-stone-700">غير المحدد</button>
+            </div>
+        </div>
+
+        <div id="catalogContainer" class="space-y-4"></div>
+    </section>
+
+    <!-- العرض الثالث: تحليل وتوزيع الطلبية -->
+    <section id="view-analytics" class="hidden flex-1 max-w-2xl w-full mx-auto p-3 sm:p-4 space-y-4 pb-24">
+        <div class="bg-white rounded-3xl p-4 sm:p-5 border border-stone-200 shadow-xs space-y-2">
+            <h2 class="text-lg sm:text-xl font-black text-stone-800">ملخص وتحليل جرد الكشك</h2>
+            <p class="text-xs sm:text-sm text-stone-600 font-bold leading-relaxed">
+                يوفر هذا التحليل نظرة شاملة على نسبة الأصناف المطلوبة مقارنة بإجمالي مخزون الكشك، وتوزيع الطلبية على الأقسام الرئيسية لمساعدتك في مراجعة النواقص قبل الإرسال.
+            </p>
+        </div>
+
+        <!-- بطاقات المؤشرات الرئيسية -->
+        <div class="grid grid-cols-3 gap-2.5 sm:gap-3">
+            <div class="bg-white rounded-2xl p-3.5 border border-stone-200 text-center shadow-xs">
+                <div class="text-xs font-bold text-stone-500">إجمالي الأصناف</div>
+                <div id="statTotalItems" class="text-2xl sm:text-3xl font-black text-stone-800 mt-1">119</div>
+            </div>
+            <div class="bg-emerald-50 rounded-2xl p-3.5 border border-emerald-200 text-center shadow-xs">
+                <div class="text-xs font-extrabold text-emerald-700">أصناف مطلوبة</div>
+                <div id="statSelectedItems" class="text-2xl sm:text-3xl font-black text-emerald-700 mt-1">0</div>
+            </div>
+            <div class="bg-amber-50 rounded-2xl p-3.5 border border-amber-200 text-center shadow-xs">
+                <div class="text-xs font-extrabold text-amber-800">إجمالي القطع</div>
+                <div id="statTotalQty" class="text-2xl sm:text-3xl font-black text-amber-700 mt-1">0</div>
+            </div>
+        </div>
+
+        <!-- الرسم البياني الأول: توزيع الفئات -->
+        <div class="bg-white rounded-3xl p-4 sm:p-5 border border-stone-200 shadow-xs space-y-2">
+            <h3 class="text-base font-black text-stone-800">توزيع الأصناف المطلوبة حسب الفئة</h3>
+            <p class="text-xs text-stone-500 font-bold">مقارنة عدد الأصناف المختارة للطلبية مقابل إجمالي أصناف كل قسم.</p>
+            <div class="chart-container">
+                <canvas id="categoryBarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- الرسم البياني الثاني: نسبة الجرد -->
+        <div class="bg-white rounded-3xl p-4 sm:p-5 border border-stone-200 shadow-xs space-y-2">
+            <h3 class="text-base font-black text-stone-800">نسبة الأصناف المطلوبة من إجمالي الكشك</h3>
+            <p class="text-xs text-stone-500 font-bold">يوضح التوازن بين الأصناف المتوفرة في المحل والأصناف التي تحتاج إعادة طلب.</p>
+            <div class="chart-container">
+                <canvas id="statusDonutChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- الشريط السفلي الثابت للإرسال والمعاينة -->
+    <footer class="bg-white border-t border-stone-200 px-3 sm:px-4 py-2.5 shrink-0 sticky bottom-0 z-30">
+        <div class="max-w-2xl mx-auto flex items-center justify-between gap-2">
+            <button type="button" onclick="openPreviewModal()" class="flex items-center gap-2.5 bg-stone-100 hover:bg-stone-200 active:scale-95 px-3.5 py-2 rounded-2xl transition">
+                <span id="selectedCountBadge" class="bg-emerald-600 text-white font-black text-base min-w-[2rem] h-8 px-2 rounded-xl flex items-center justify-center">0</span>
+                <div class="text-right">
+                    <div class="text-xs sm:text-sm font-extrabold text-stone-800">الطلبات المختارة</div>
+                    <div class="text-[11px] text-stone-500">معاينة وتعديل النص</div>
+                </div>
+            </button>
+
+            <button type="button" onclick="sendWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-4 sm:px-5 py-3 rounded-2xl font-extrabold text-sm sm:text-base transition flex items-center gap-2 shadow-md shadow-emerald-600/20">
+                <span>💬 إرسال واتساب</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- نافذة معاينة الطلبية قبل الإرسال -->
+    <div id="previewModal" class="hidden fixed inset-0 z-50 bg-stone-900/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
+            <div class="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+                <h3 class="font-black text-lg text-stone-800">معاينة الطلبية النهائية</h3>
+                <button type="button" onclick="closePreviewModal()" class="w-9 h-9 rounded-full bg-stone-200/70 hover:bg-stone-200 text-stone-700 font-black">✕</button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1">
+                <textarea id="previewTextArea" rows="11" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl p-3.5 text-base font-bold leading-relaxed text-stone-800 focus:border-emerald-500 focus:bg-white outline-none"></textarea>
+            </div>
+            <div class="p-4 border-t border-stone-100 bg-stone-50 flex items-center gap-2.5">
+                <button type="button" onclick="copyFromPreview()" class="flex-1 bg-stone-800 hover:bg-stone-900 text-white py-3.5 rounded-2xl font-extrabold text-base transition">
+                    📋 نسخ النص
+                </button>
+                <button type="button" onclick="sendFromPreview()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl font-extrabold text-base transition">
+                    💬 إرسال واتساب
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إضافة صنف جديد -->
+    <div id="addItemModal" class="hidden fixed inset-0 z-50 bg-stone-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+                <h3 class="font-black text-lg text-stone-800">إضافة صنف جديد</h3>
+                <button type="button" onclick="closeAddModal()" class="w-9 h-9 rounded-full bg-stone-200/70 hover:bg-stone-200 text-stone-700 font-black">✕</button>
+            </div>
+            <div class="p-4 space-y-3">
+                <div>
+                    <label class="block text-xs font-extrabold text-stone-700 mb-1">اسم الصنف</label>
+                    <input type="text" id="newItemName" placeholder="مثال: شطرطون عريض شفاف" class="w-full bg-stone-50 border-2 border-stone-200 rounded-xl px-3.5 py-2.5 text-base font-bold outline-none focus:border-emerald-500 focus:bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-extrabold text-stone-700 mb-1">الفئة</label>
+                    <select id="newItemCategory" class="w-full bg-stone-50 border-2 border-stone-200 rounded-xl px-3.5 py-2.5 text-base font-bold outline-none focus:border-emerald-500 focus:bg-white">
+                        <option value="1. الصيدلية والعناية الشخصية">1. الصيدلية والعناية الشخصية</option>
+                        <option value="2. الأمواس وماكينات الحلاقة">2. الأمواس وماكينات الحلاقة</option>
+                        <option value="3. القصاصات والأمشاط والمرايا">3. القصاصات والأمشاط والمرايا</option>
+                        <option value="4. القرطاسية والأقلام والدفاتر">4. القرطاسية والأقلام والدفاتر</option>
+                        <option value="5. أوراق اللعب (البلوت والأونو)">5. أوراق اللعب (البلوت والأونو)</option>
+                        <option value="6. العدة والأدوات والخياطة والأقفال">6. العدة والأدوات والخياطة والأقفال</option>
+                        <option value="7. الولاعات والكبريت">7. الولاعات والكبريت</option>
+                        <option value="8. البطاريات">8. البطاريات</option>
+                        <option value="9. المبيدات والمعطرات">9. المبيدات والمعطرات</option>
+                        <option value="10. المنوعات والإلكترونيات والطفايات" selected>10. المنوعات والإلكترونيات والطفايات</option>
+                        <option value="11. اقتراحات إضافية مقترحة للكشك">11. اقتراحات إضافية مقترحة للكشك</option>
+                    </select>
+                </div>
+                <div class="pt-2">
+                    <button type="button" onclick="addNewItem()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-black text-base transition">حفظ وإضافة للطلبية</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة رفع صورة الرف والقص التلقائي الذكي -->
+    <div id="shelfPhotoModal" class="hidden fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-xs flex items-center justify-center p-3">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+                <div>
+                    <h3 class="font-black text-base sm:text-lg text-stone-800">استخراج صور الأصناف من صورة الرف</h3>
+                    <p id="shelfModalItemName" class="text-xs font-extrabold text-emerald-700">ارفع صورة الرف ليتم قص كل صنف تلقائياً</p>
+                </div>
+                <button type="button" onclick="closeShelfPhotoModal()" class="w-9 h-9 rounded-full bg-stone-200/70 hover:bg-stone-200 text-stone-700 font-black">✕</button>
+            </div>
+
+            <div class="p-4 overflow-y-auto flex-1 space-y-3 text-center">
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-right text-xs font-bold text-amber-900 leading-relaxed">
+                    ✨ <strong>بطاقات إعلانية + قص ذكي:</strong> عند رفع صورة الرف سيتم قص الأصناف الموجودة فيه تلقائياً ووضعها في بطاقاتها!
+                </div>
+
+                <label class="block w-full cursor-pointer bg-sky-600 hover:bg-sky-700 text-white rounded-2xl p-3.5 shadow-md transition">
+                    <span class="text-sm font-black">📸 اختر صورة الرف لاستخراج الأصناف تلقائياً</span>
+                    <input type="file" accept="image/*" onchange="handleShelfImageUpload(event)" class="hidden">
+                </label>
+
+                <button type="button" id="useLastShelfBtn" onclick="applyLastShelfImage()" class="hidden w-full bg-stone-100 hover:bg-stone-200 text-stone-800 py-2.5 px-3 rounded-xl text-xs font-extrabold">
+                    تطبيق صورة الرف السابقة على هذا الصنف
+                </button>
+
+                <div id="shelfImagePreviewWrapper" class="hidden relative rounded-2xl overflow-hidden border-2 border-stone-300 bg-stone-900 select-none">
+                    <img id="shelfPreviewImg" src="" onclick="setPinOnShelfImage(event)" class="w-full max-h-[45vh] object-contain mx-auto cursor-crosshair">
+                    <div id="shelfPreviewPin" class="hidden absolute w-9 h-9 rounded-full bg-red-600/80 border-4 border-white shadow-lg pointer-events-none shelf-pin"></div>
+                </div>
+                <p id="shelfTapHint" class="hidden text-xs font-bold text-stone-600">👆 اضغط فوق الصنف في الصورة لوضع مؤشر تحديد أحمر</p>
+            </div>
+
+            <div class="p-3 border-t border-stone-100 bg-stone-50 flex items-center gap-2">
+                <button type="button" onclick="removeShelfImageFromItem()" class="px-3 py-3 rounded-2xl bg-rose-50 text-rose-600 font-bold text-xs">العودة للبطاقة الإعلانية</button>
+                <button type="button" onclick="closeShelfPhotoModal()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-extrabold text-base">تم</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-stone-900 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-extrabold flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300 translate-y-[-10px]">
+        <span id="toastMessage">تم الحفظ</span>
+    </div>
+
+    <script>
+        const initialItemsData = [
+            // 1. الصيدلية والعناية الشخصية
+            { id: 1, name: "فكس صغير (فيبوراب)", category: "1. الصيدلية والعناية الشخصية", selected: true, qty: 1, shelfCode: "shelf1", cropBox: [0.10, 0.72, 0.42, 0.81], promoBrand: "VICKS VapoRub", promoSub: "حجم صغير • أزرق", promoTheme: "from-blue-800 via-blue-700 to-cyan-600", promoBadge: "الأكثر طلباً" },
+            { id: 2, name: "فكس كبير (فيبوراب)", category: "1. الصيدلية والعناية الشخصية", selected: true, qty: 1, shelfCode: "shelf1", cropBox: [0.10, 0.63, 0.48, 0.73], promoBrand: "VICKS VapoRub", promoSub: "حجم كبير عائلي", promoTheme: "from-sky-900 via-blue-800 to-teal-600", promoBadge: "حجم كبير" },
+            { id: 3, name: "فكس قليقا (جليجلا)", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.11, 0.56, 0.47, 0.64], promoBrand: "GELIGA", promoSub: "مرهم العضلات الأصلي", promoTheme: "from-red-700 via-rose-600 to-amber-500", promoBadge: "أحمر وأزرق" },
+            { id: 4, name: "فكس أبو نمر", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.12, 0.43, 0.43, 0.49], promoBrand: "TIGER BALM", promoSub: "بلسم النمر الأصلي", promoTheme: "from-amber-600 via-orange-500 to-red-600", promoBadge: "أصلي" },
+            { id: 5, name: "بلسم أخضر", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.11, 0.48, 0.48, 0.56], promoBrand: "EAGLE GREEN BALM", promoSub: "بلسم النسر الأخضر", promoTheme: "from-emerald-700 via-green-600 to-lime-500", promoBadge: "أخضر منعش" },
+            { id: 6, name: "بلسم قليقا", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, promoBrand: "GELIGA BALM", promoSub: "بلسم دافئ", promoTheme: "from-red-800 via-red-600 to-orange-500" },
+            { id: 7, name: "موف (كريم آلام)", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.12, 0.37, 0.38, 0.43], promoBrand: "MOOV", promoSub: "راحة فورية للعضلات والمفاصل", promoTheme: "from-purple-800 via-fuchsia-700 to-pink-600", promoBadge: "عبوة موف" },
+            { id: 8, name: "لصقة جونسون", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, promoBrand: "Johnson's", promoSub: "لصقة ظهر حرارية", promoTheme: "from-red-700 via-rose-600 to-red-500" },
+            { id: 9, name: "لصقة جراح", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, promoBrand: "PLASTER", promoSub: "لصقات جروح طبية", promoTheme: "from-teal-700 via-emerald-600 to-cyan-600" },
+            { id: 10, name: "صبغة كاترينا شامبو", category: "1. الصيدلية والعناية الشخصية", selected: true, qty: 1, shelfCode: "shelf1", cropBox: [0.12, 0.21, 0.40, 0.37], promoBrand: "Katrina", promoSub: "شامبو صبغة الشعر الطبيعي", promoTheme: "from-green-700 via-emerald-600 to-lime-500", promoBadge: "علبة خضراء" },
+            { id: 11, name: "صبغة إيجل", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.13, 0.11, 0.36, 0.22], promoBrand: "EAGLE HENNA", promoSub: "حناء صبغة شعر طبيعية", promoTheme: "from-stone-900 via-amber-900 to-yellow-700", promoBadge: "إيجل الأصلي", variantLabel: "اختر اللون المطلوب:", variants: ["أسود", "بني"], selectedVariants: ["أسود"] },
+            { id: 12, name: "صبغة فاتيكا أسود", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, promoBrand: "Vatika", promoSub: "حناء فاتيكا أسود طبيعي", promoTheme: "from-emerald-900 via-green-800 to-teal-700" },
+            { id: 1201, name: "نظارات قراءة", category: "1. الصيدلية والعناية الشخصية", selected: false, qty: 1, promoBrand: "READING GLASSES", promoSub: "درجات قراءة متنوعة", promoTheme: "from-slate-800 via-slate-700 to-indigo-800" },
+
+            // 2. الأمواس وماكينات الحلاقة
+            { id: 13, name: "جيليت أصفر", category: "2. الأمواس وماكينات الحلاقة", selected: true, qty: 1, promoBrand: "Gillette 7 O'CLOCK", promoSub: "شفرات حلاقة صفراء", promoTheme: "from-amber-500 via-yellow-500 to-orange-500", promoBadge: "أصفر" },
+            { id: 14, name: "جيليت أزرق", category: "2. الأمواس وماكينات الحلاقة", selected: true, qty: 1, promoBrand: "Gillette BLUE II", promoSub: "ماكينة حلاقة زرقاء", promoTheme: "from-blue-700 via-blue-600 to-sky-500", promoBadge: "أزرق" },
+            { id: 15, name: "جيليت أزرق كيس", category: "2. الأمواس وماكينات الحلاقة", selected: false, qty: 1, promoBrand: "Gillette BLUE", promoSub: "تغليف كيس اقتصادي", promoTheme: "from-sky-700 via-blue-600 to-indigo-600" },
+            { id: 16, name: "جيليت أبو 3", category: "2. الأمواس وماكينات الحلاقة", selected: false, qty: 1, promoBrand: "Gillette 3", promoSub: "ثلاث شفرات حادة", promoTheme: "from-cyan-700 via-blue-700 to-slate-800" },
+            { id: 17, name: "جيليت بلو 3", category: "2. الأمواس وماكينات الحلاقة", selected: true, qty: 1, promoBrand: "Gillette BLUE 3", promoSub: "انسيابية عالية • 3 شفرات", promoTheme: "from-blue-800 via-cyan-600 to-blue-500", promoBadge: "بلو 3" },
+            { id: 18, name: "جيليت الذي ينطوي", category: "2. الأمواس وماكينات الحلاقة", selected: false, qty: 1, promoBrand: "Gillette FOLD", promoSub: "تصميم قابل للطي للسفر", promoTheme: "from-indigo-800 via-blue-700 to-slate-700" },
+            { id: 19, name: "أمواس بودي", category: "2. الأمواس وماكينات الحلاقة", selected: false, qty: 1, promoBrand: "BODY RAZORS", promoSub: "أمواس حلاقة ناعمة", promoTheme: "from-pink-600 via-rose-500 to-purple-600" },
+            { id: 20, name: "ماكينة لورد الأصلي", category: "2. الأمواس وماكينات الحلاقة", selected: false, qty: 1, promoBrand: "LORD", promoSub: "ماكينة حلاقة معدن أصلية", promoTheme: "from-slate-800 via-zinc-700 to-amber-600" },
+            { id: 21, name: "ماكينة دينج لينج", category: "2. الأمواس وماكينات الحلاقة", selected: false, qty: 1, promoBrand: "DINGLING", promoSub: "ماكينة حلاقة كهربائية قابلة للشحن", promoTheme: "from-zinc-900 via-slate-800 to-amber-700" },
+            { id: 22, name: "مكائن حلاقة شباب", category: "2. الأمواس وماكينات الحلاقة", selected: false, qty: 1, promoBrand: "SHAVING PACK", promoSub: "طقم حلاقة رجالي", promoTheme: "from-blue-900 via-slate-800 to-cyan-700" },
+
+            // 3. القصاصات والأمشاط والمرايا
+            { id: 23, name: "قصاصات 777 صغير", category: "3. القصاصات والأمشاط والمرايا", selected: true, qty: 1, promoBrand: "THREE SEVEN 777", promoSub: "قصاصة أظافر كورية • صغير", promoTheme: "from-zinc-800 via-slate-700 to-zinc-600", promoBadge: "777 صغير" },
+            { id: 24, name: "قصاصات 777 كبير", category: "3. القصاصات والأمشاط والمرايا", selected: true, qty: 1, promoBrand: "THREE SEVEN 777", promoSub: "قصاصة أظافر كورية • كبير", promoTheme: "from-slate-900 via-zinc-800 to-amber-600", promoBadge: "777 كبير" },
+            { id: 25, name: "قصاصات سوبر دول كبير", category: "3. القصاصات والأمشاط والمرايا", selected: false, qty: 1, promoBrand: "SUPER DOLL", promoSub: "قصاصة أظافر ستانلس", promoTheme: "from-red-800 via-slate-800 to-zinc-700" },
+            { id: 26, name: "مشط علبة", category: "3. القصاصات والأمشاط والمرايا", selected: false, qty: 1, promoBrand: "COMB BOX", promoSub: "علبة أمشاط مشكلة", promoTheme: "from-teal-700 via-emerald-700 to-slate-800" },
+            { id: 27, name: "مشط مدور", category: "3. القصاصات والأمشاط والمرايا", selected: false, qty: 1, promoBrand: "ROUND COMB", promoSub: "مشط تسريح دائري", promoTheme: "from-purple-700 via-indigo-700 to-slate-800" },
+            { id: 28, name: "مشط مدور بمسكة", category: "3. القصاصات والأمشاط والمرايا", selected: false, qty: 1, promoBrand: "HANDLE BRUSH", promoSub: "فرشاة دائرية بمقبض", promoTheme: "from-rose-700 via-pink-700 to-slate-800" },
+            { id: 29, name: "مشط فرشة كبير", category: "3. القصاصات والأمشاط والمرايا", selected: true, qty: 1, promoBrand: "HAIR BRUSH", promoSub: "فرشاة شعر كبيرة", promoTheme: "from-amber-700 via-orange-700 to-stone-800" },
+            { id: 30, name: "مشط شنب", category: "3. القصاصات والأمشاط والمرايا", selected: false, qty: 1, promoBrand: "POCKET COMB", promoSub: "مشط جيب صغير", promoTheme: "from-stone-800 via-neutral-700 to-amber-800" },
+            { id: 31, name: "مشط طويل", category: "3. القصاصات والأمشاط والمرايا", selected: false, qty: 1, promoBrand: "LONG COMB", promoSub: "مشط شعر طويل", promoTheme: "from-slate-800 via-blue-900 to-slate-700" },
+            { id: 32, name: "مشط قشرة", category: "3. القصاصات والأمشاط والمرايا", selected: false, qty: 1, promoBrand: "FINE COMB", promoSub: "مشط أسنان ناعمة", promoTheme: "from-cyan-800 via-teal-700 to-slate-800" },
+            { id: 33, name: "مراية صغير", category: "3. القصاصات والأمشاط والمرايا", selected: false, qty: 1, promoBrand: "POCKET MIRROR", promoSub: "مرآة يد وجيب", promoTheme: "from-pink-700 via-rose-600 to-amber-600" },
+
+            // 4. القرطاسية والأقلام والدفاتر
+            { id: 34, name: "أقلام روكو", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "ROCO PENS", promoSub: "أقلام جاف روكو الأصلية", promoTheme: "from-blue-800 via-indigo-700 to-sky-600", variantLabel: "اختر الألوان المطلوبة:", variants: ["أزرق", "أحمر", "أسود"], selectedVariants: ["أزرق"] },
+            { id: 35, name: "أقلام أزرق (عادي)", category: "4. القرطاسية والأقلام والدفاتر", selected: true, qty: 1, promoBrand: "BLUE PEN", promoSub: "علبة أقلام حبر أزرق", promoTheme: "from-blue-700 via-blue-600 to-cyan-600" },
+            { id: 36, name: "أقلام ماركة منوع", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "BRANDED PENS", promoSub: "تشكيلة أقلام متنوعة", promoTheme: "from-violet-800 via-purple-700 to-indigo-600" },
+            { id: 37, name: "مرسام", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "HB PENCILS", promoSub: "أقلام رصاص للكتابة والرسم", promoTheme: "from-amber-600 via-yellow-600 to-stone-700" },
+            { id: 38, name: "محاية", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "ERASER", promoSub: "ممحاة نظيفة بدون أثر", promoTheme: "from-sky-600 via-blue-500 to-indigo-600" },
+            { id: 39, name: "براية صغير", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "SHARPENER", promoSub: "براية أقلام حادة", promoTheme: "from-rose-600 via-red-500 to-orange-500" },
+            { id: 40, name: "دفتر عربي 40", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "NOTEBOOK 40", promoSub: "دفتر مسطر عربي 40 ورقة", promoTheme: "from-emerald-700 via-teal-600 to-cyan-700" },
+            { id: 41, name: "دفتر عربي 60", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "NOTEBOOK 60", promoSub: "دفتر مسطر عربي 60 ورقة", promoTheme: "from-blue-700 via-indigo-600 to-purple-700" },
+            { id: 42, name: "دفتر عربي 80", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "NOTEBOOK 80", promoSub: "دفتر مسطر عربي 80 ورقة", promoTheme: "from-amber-700 via-orange-600 to-red-700" },
+            { id: 43, name: "دفتر إنجليزي", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "ENGLISH BOOK", promoSub: "دفتر تسطير إنجليزي", promoTheme: "from-indigo-800 via-blue-700 to-sky-600" },
+            { id: 44, name: "دفتر نوتة", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "POCKET NOTE", promoSub: "نوتة ملاحظات سلك", promoTheme: "from-slate-800 via-slate-700 to-emerald-700" },
+            { id: 45, name: "كراسة رسم صغير", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "SKETCHBOOK S", promoSub: "كراسة تلوين ورسم صغير", promoTheme: "from-pink-600 via-purple-600 to-indigo-600" },
+            { id: 46, name: "كراسة رسم كبير", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "SKETCHBOOK L", promoSub: "كراسة رسم مقاس كبير", promoTheme: "from-orange-600 via-rose-600 to-purple-700" },
+            { id: 47, name: "ملفات فواتير", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "INVOICE FILE", promoSub: "ملف حفظ أوراق وفواتير", promoTheme: "from-blue-900 via-slate-800 to-blue-700" },
+            { id: 48, name: "ورق A4", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "A4 PAPER", promoSub: "رزمة ورق طباعة 80 جرام", promoTheme: "from-sky-800 via-blue-700 to-cyan-600" },
+            { id: 49, name: "ورق كاشير", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.51, 0.70, 0.92, 0.85], promoBrand: "THERMAL ROLLS", promoSub: "رولات ورق كاشير حراري", promoTheme: "from-slate-700 via-zinc-600 to-slate-800" },
+            { id: 50, name: "مسامير دباسة", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "STAPLES", promoSub: "دبابيس كبس ورق", promoTheme: "from-zinc-800 via-slate-700 to-blue-800" },
+            { id: 51, name: "مسامير دباسة باكت كبير", category: "4. القرطاسية والأقلام والدفاتر", selected: true, qty: 1, promoBrand: "STAPLES PACK", promoSub: "باكت دبابيس كبير كامل", promoTheme: "from-slate-900 via-blue-900 to-indigo-800" },
+            { id: 52, name: "غرا سوبر جلو", category: "4. القرطاسية والأقلام والدفاتر", selected: true, qty: 1, promoBrand: "SUPER GLUE", promoSub: "لاصق فوري قوي جداً", promoTheme: "from-red-700 via-amber-600 to-yellow-500", promoBadge: "سوبر جلو" },
+            { id: 53, name: "غرا UHU", category: "4. القرطاسية والأقلام والدفاتر", selected: false, qty: 1, promoBrand: "UHU GLUE", promoSub: "لاصق أوهو الأصفر الأصلي", promoTheme: "from-yellow-500 via-amber-500 to-stone-900", promoBadge: "UHU" },
+
+            // 5. أوراق اللعب (البلوت والأونو)
+            { id: 56, name: "ورق لعب صكة", category: "5. أوراق اللعب (البلوت والأونو)", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.51, 0.02, 0.92, 0.22], promoBrand: "ورق صكة الأصلي", promoSub: "أحمر • أزرق • عنابي • منوع", promoTheme: "from-blue-900 via-red-800 to-rose-700", promoBadge: "تشكيلة صكة", variantLabel: "اختر اللون أو النوع:", variants: ["أحمر", "أزرق", "عنابي", "منوع"], selectedVariants: [] },
+            { id: 54, name: "ورق لعب ناب", category: "5. أوراق اللعب (البلوت والأونو)", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.52, 0.21, 0.93, 0.34], promoBrand: "NAP POKER 100%", promoSub: "ورق لعب بلاستيك ناب", promoTheme: "from-zinc-950 via-red-800 to-amber-600", promoBadge: "أحمر / أسود / شفاف", variantLabel: "اختر اللون المطلوب:", variants: ["أحمر", "أسود", "شفاف"], selectedVariants: [] },
+            { id: 55, name: "ورق لعب ناب (علبة بلاستيك)", category: "5. أوراق اللعب (البلوت والأونو)", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.59, 0.50, 0.80, 0.62], promoBrand: "NAP PLASTIC", promoSub: "علبة بلاستيك شفافة", promoTheme: "from-purple-800 via-pink-700 to-amber-600" },
+            { id: 57, name: "ورق لعب آشا", category: "5. أوراق اللعب (البلوت والأونو)", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.71, 0.42, 0.92, 0.53], promoBrand: "ASHA PLAYING CARDS", promoSub: "ورق لعب آشا هندي أصلي", promoTheme: "from-red-800 via-red-600 to-amber-500", promoBadge: "ASHA" },
+            { id: 58, name: "ورق لعب أونو", category: "5. أوراق اللعب (البلوت والأونو)", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.51, 0.51, 0.61, 0.62], promoBrand: "UNO CARDS", promoSub: "لعبة ورق أونو الشهيرة", promoTheme: "from-red-600 via-amber-500 to-emerald-600", promoBadge: "UNO" },
+
+            // 6. العدة والأدوات والخياطة والأقفال
+            { id: 59, name: "مفكات علبة مشكلة", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "SCREWDRIVER SET", promoSub: "طقم مفكات صيانة متكامل", promoTheme: "from-amber-700 via-orange-600 to-slate-800" },
+            { id: 60, name: "مفكات + زرادية", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "TOOL KIT", promoSub: "طقم مفكات مع زرادية", promoTheme: "from-red-800 via-slate-800 to-amber-600" },
+            { id: 61, name: "متر 3 متر", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "MEASURING TAPE 3M", promoSub: "متر قياس حديد 3 متر", promoTheme: "from-yellow-600 via-amber-600 to-zinc-800" },
+            { id: 62, name: "متر 5 متر", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "MEASURING TAPE 5M", promoSub: "متر قياس حديد 5 متر", promoTheme: "from-orange-600 via-amber-600 to-slate-900" },
+            { id: 63, name: "متر ملابس", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "TAILOR TAPE", promoSub: "متر خياطة مرن", promoTheme: "from-pink-600 via-rose-500 to-amber-500" },
+            { id: 64, name: "شطرطون كهرباء", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "PVC TAPE", promoSub: "شريط عازل للكهرباء", promoTheme: "from-zinc-900 via-red-700 to-blue-700", variantLabel: "اختر الألوان المطلوبة:", variants: ["أسود", "أحمر", "ملون"], selectedVariants: [] },
+            { id: 65, name: "شطرطون فلوس", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "CLEAR TAPE", promoSub: "شطرطون شفاف صغير", promoTheme: "from-cyan-700 via-sky-600 to-slate-700" },
+            { id: 66, name: "لاصق وجهين", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "DOUBLE TAPE", promoSub: "شريط لاصق قوي من الجهتين", promoTheme: "from-emerald-700 via-teal-600 to-slate-800" },
+            { id: 67, name: "مقص بلاستيك صغير", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "SCISSORS S", promoSub: "مقص بمقبض بلاستيك صغير", promoTheme: "from-blue-700 via-sky-600 to-slate-800" },
+            { id: 68, name: "مقص بلاستيك كبير", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "SCISSORS L", promoSub: "مقص مقاس كبير متعدد الاستخدام", promoTheme: "from-red-700 via-rose-600 to-slate-800" },
+            { id: 69, name: "مقص باكستاني صغير", category: "6. العدة والأدوات والخياطة والأقفال", selected: true, qty: 1, promoBrand: "PAKISTANI SCISSORS", promoSub: "مقص حديد باكستاني حاد", promoTheme: "from-zinc-800 via-slate-700 to-amber-600", promoBadge: "باكستاني" },
+            { id: 70, name: "مشرط صغير", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "CUTTER KNIFE", promoSub: "مشرط قطع حاد", promoTheme: "from-amber-600 via-orange-600 to-zinc-800" },
+            { id: 71, name: "خيط خياطة", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "SEWING THREAD", promoSub: "بكرة خيط خياطة متين", promoTheme: "from-slate-800 via-zinc-700 to-slate-600", variantLabel: "اختر اللون المطلوب:", variants: ["أبيض", "أسود"], selectedVariants: [] },
+            { id: 72, name: "دبابيس بنات", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "SAFETY PINS", promoSub: "دبابيس مشبك وطرح", promoTheme: "from-purple-700 via-pink-600 to-rose-600" },
+            { id: 73, name: "قفل 261", category: "6. العدة والأدوات والخياطة والأقفال", selected: true, qty: 1, promoBrand: "PADLOCK 261", promoSub: "قفل حديد مقاس 261", promoTheme: "from-amber-700 via-yellow-600 to-stone-800", promoBadge: "261" },
+            { id: 74, name: "قفل 263", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "PADLOCK 263", promoSub: "قفل حديد مقاس 263", promoTheme: "from-yellow-700 via-amber-600 to-zinc-900", promoBadge: "263" },
+            { id: 75, name: "كالون باب أصلي", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "DOOR LOCK", promoSub: "قلب كالون باب مع مفاتيح", promoTheme: "from-stone-800 via-amber-800 to-yellow-700" },
+            { id: 76, name: "اشتراك سيارة", category: "6. العدة والأدوات والخياطة والأقفال", selected: false, qty: 1, promoBrand: "BOOSTER CABLE", promoSub: "كيبل اشتراك بطارية سيارة", promoTheme: "from-red-800 via-zinc-900 to-amber-600" },
+            { id: 77, name: "أكياس (كرتون)", category: "6. العدة والأدوات والخياطة والأقفال", selected: true, qty: 1, promoBrand: "SHOPPING BAGS", promoSub: "كرتون أكياس بلاستيك كامل", promoTheme: "from-emerald-800 via-teal-700 to-slate-800", promoBadge: "كرتون" },
+
+            // 7. الولاعات والكبريت
+            { id: 78, name: "ولاعات أبو ريال", category: "7. الولاعات والكبريت", selected: true, qty: 1, promoBrand: "LIGHTERS BOX", promoSub: "علبة ولاعات غاز اقتصادية", promoTheme: "from-orange-600 via-red-600 to-amber-500", promoBadge: "أبو ريال" },
+            { id: 79, name: "ولاعات سيفيك دافور", category: "7. الولاعات والكبريت", selected: true, qty: 1, promoBrand: "CIVIC JET LIGHTER", promoSub: "ولاعة سيفيك شعلة دافور", promoTheme: "from-blue-800 via-indigo-700 to-orange-600", promoBadge: "سيفيك دافور" },
+            { id: 80, name: "ولاعات دافور صغير", category: "7. الولاعات والكبريت", selected: false, qty: 1, promoBrand: "MINI TORCH", promoSub: "ولاعة دافور مقاس صغير", promoTheme: "from-red-700 via-orange-600 to-zinc-800" },
+            { id: 81, name: "ولاعات دافور كبير", category: "7. الولاعات والكبريت", selected: false, qty: 1, promoBrand: "MAX TORCH", promoSub: "ولاعة دافور مقاس كبير", promoTheme: "from-zinc-900 via-red-800 to-orange-600" },
+            { id: 82, name: "ولاعات فحم دافور", category: "7. الولاعات والكبريت", selected: false, qty: 1, promoBrand: "CHARCOAL TORCH", promoSub: "ولاعة إشعال الفحم والبخور", promoTheme: "from-amber-800 via-orange-700 to-red-800" },
+            { id: 83, name: "كبريت", category: "7. الولاعات والكبريت", selected: false, qty: 1, promoBrand: "MATCHES", promoSub: "باكت أعواد ثقاب", promoTheme: "from-red-700 via-amber-600 to-yellow-600" },
+
+            // 8. البطاريات
+            { id: 84, name: "بطاريات سيفيك", category: "8. البطاريات", selected: false, qty: 1, promoBrand: "CIVIC BATTERY", promoSub: "بطاريات سيفيك طويلة العمر", promoTheme: "from-red-700 via-zinc-900 to-amber-500", variantLabel: "اختر المقاس:", variants: ["AA (وسط)", "AAA (ريموت)"], selectedVariants: [] },
+            { id: 85, name: "بطاريات باناسونيك", category: "8. البطاريات", selected: false, qty: 1, promoBrand: "Panasonic", promoSub: "بطاريات باناسونيك الأصلية", promoTheme: "from-blue-900 via-blue-700 to-amber-500", variantLabel: "اختر المقاس:", variants: ["AA", "D (كبير)"], selectedVariants: [] },
+            { id: 86, name: "بطاريات دورسل", category: "8. البطاريات", selected: false, qty: 1, promoBrand: "DURACELL", promoSub: "بطاريات طاقة عالية", promoTheme: "from-amber-700 via-yellow-600 to-zinc-950", promoBadge: "دورسل" },
+            { id: 87, name: "بطاريات 9 فولت", category: "8. البطاريات", selected: false, qty: 1, promoBrand: "9V BATTERY", promoSub: "بطارية مربعة 9 فولت", promoTheme: "from-slate-800 via-blue-900 to-amber-600" },
+            { id: 88, name: "بطاريات 2032", category: "8. البطاريات", selected: false, qty: 1, promoBrand: "CR2032 LITHIUM", promoSub: "بطارية ريموت سيارة وساعات", promoTheme: "from-sky-800 via-slate-700 to-cyan-600" },
+            { id: 89, name: "بطاريات 2023", category: "8. البطاريات", selected: false, qty: 1, promoBrand: "CR2023", promoSub: "بطارية ليثيوم دائرية", promoTheme: "from-indigo-800 via-slate-700 to-blue-600" },
+            { id: 90, name: "بطاريات 144", category: "8. البطاريات", selected: false, qty: 1, promoBrand: "LR44 / 144", promoSub: "بطاريات ألعاب وساعات صغيرة", promoTheme: "from-teal-800 via-slate-700 to-emerald-600" },
+
+            // 9. المبيدات والمعطرات
+            { id: 91, name: "مضرب ذباب", category: "9. المبيدات والمعطرات", selected: true, qty: 1, promoBrand: "FLY SWATTER", promoSub: "مضرب ذباب بلاستيك مرن", promoTheme: "from-emerald-700 via-green-600 to-teal-700" },
+            { id: 92, name: "مضرب ناموس كهرباء", category: "9. المبيدات والمعطرات", selected: false, qty: 1, promoBrand: "ELECTRIC RACKET", promoSub: "مضرب صاعق للناموس قابل للشحن", promoTheme: "from-blue-800 via-indigo-700 to-amber-500" },
+            { id: 93, name: "جهاز ناموس ريد", category: "9. المبيدات والمعطرات", selected: false, qty: 1, promoBrand: "RAID DEVICE", promoSub: "جهاز طارد الناموس الكهربائي", promoTheme: "from-red-700 via-rose-600 to-zinc-800" },
+            { id: 94, name: "سائل ريد", category: "9. المبيدات والمعطرات", selected: false, qty: 1, promoBrand: "RAID LIQUID", promoSub: "عبوة غيار سائل ريد", promoTheme: "from-red-800 via-red-600 to-amber-500" },
+            { id: 95, name: "جهاز ناموس آرس", category: "9. المبيدات والمعطرات", selected: false, qty: 1, shelfCode: "shelf1", cropBox: [0.09, 0.80, 0.37, 0.96], promoBrand: "ARS 360", promoSub: "جهاز ناموس آرس + سائل مجاناً", promoTheme: "from-sky-600 via-cyan-500 to-red-500", promoBadge: "ARS 360" },
+            { id: 96, name: "كريم ناموس أخضر", category: "9. المبيدات والمعطرات", selected: false, qty: 1, promoBrand: "MOSQUITO CREAM", promoSub: "كريم حماية من البعوض", promoTheme: "from-green-700 via-emerald-600 to-lime-500" },
+            { id: 97, name: "معطر جو رحال", category: "9. المبيدات والمعطرات", selected: false, qty: 1, promoBrand: "RAHAL FRESH", promoSub: "بخاخ معطر جو رحال", promoTheme: "from-teal-700 via-cyan-600 to-blue-700" },
+            { id: 98, name: "معطر جو فريدا", category: "9. المبيدات والمعطرات", selected: false, qty: 1, promoBrand: "FREEDA", promoSub: "معطر جو فريدا بروائح مميزة", promoTheme: "from-purple-700 via-pink-600 to-rose-600" },
+            { id: 99, name: "فواحة / ريحة", category: "9. المبيدات والمعطرات", selected: false, qty: 1, promoBrand: "AIR FRESHENER", promoSub: "فواحة سيارة ومنزل", promoTheme: "from-rose-700 via-purple-700 to-zinc-900", variantLabel: "اختر الروائح المطلوبة:", variants: ["فانيليا بلاك", "فراولة", "كرز"], selectedVariants: [] },
+
+            // 10. المنوعات والإلكترونيات والطفايات
+            { id: 100, name: "خاتم تسبيح", category: "10. المنوعات والإلكترونيات والطفايات", selected: true, qty: 1, promoBrand: "DIGITAL TASBIH", promoSub: "مسبحة إلكترونية رقمية", promoTheme: "from-emerald-800 via-teal-700 to-amber-600" },
+            { id: 101, name: "مسواك الصفا", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "AL-SAFA MISWAK", promoSub: "سواك طبيعي مغلف", promoTheme: "from-amber-800 via-yellow-700 to-emerald-800" },
+            { id: 102, name: "حصالة كبير", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "MONEY BOX", promoSub: "حصالة نقود حجم كبير", promoTheme: "from-blue-700 via-indigo-600 to-amber-500" },
+            { id: 103, name: "شمع كيك ميلاد", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "BIRTHDAY CANDLES", promoSub: "شموع احتفالات ملونة", promoTheme: "from-pink-600 via-amber-500 to-purple-600" },
+            { id: 104, name: "نقشات حناء", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "HENNA STENCIL", promoSub: "استكرات نقش حناء جاهزة", promoTheme: "from-rose-800 via-red-700 to-amber-700" },
+            { id: 105, name: "ليزر", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "LASER POINTER", promoSub: "قلم ليزر قوي", promoTheme: "from-emerald-700 via-zinc-900 to-red-600" },
+            { id: 106, name: "كشاف رأس", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "HEADLAMP LED", promoSub: "كشاف رأس إضاءة LED قوية", promoTheme: "from-slate-900 via-blue-900 to-amber-500" },
+            { id: 107, name: "ريموت رسيفر", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "RECEIVER REMOTE", promoSub: "ريموت كنترول رسيفرات", promoTheme: "from-zinc-900 via-slate-800 to-blue-800" },
+            { id: 108, name: "نظارات", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "SUNGLASSES", promoSub: "نظارات شمسية شبابية", promoTheme: "from-stone-900 via-amber-800 to-slate-800" },
+            { id: 109, name: "خواتم", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "RINGS BOX", promoSub: "علبة خواتم رجالية مشكلة", promoTheme: "from-zinc-800 via-amber-700 to-stone-900" },
+            { id: 110, name: "ساعات", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "WATCHES", promoSub: "ساعات يد متنوعة", promoTheme: "from-slate-900 via-indigo-900 to-amber-600" },
+            { id: 111, name: "طفايات سجائر", category: "10. المنوعات والإلكترونيات والطفايات", selected: false, qty: 1, promoBrand: "ASHTRAYS", promoSub: "طفايات سجائر للمكتب والسيارة", promoTheme: "from-stone-800 via-amber-800 to-zinc-900", variantLabel: "اختر النوع المطلوب:", variants: ["زجاج", "حديد", "نحاس"], selectedVariants: [] },
+
+            // 11. اقتراحات إضافية مقترحة للكشك
+            { id: 112, name: "شطرطون شفاف عريض (تغليف)", category: "11. اقتراحات إضافية مقترحة للكشك", selected: false, qty: 1, isSuggestion: true, promoBrand: "PACKING TAPE", promoSub: "شطرطون تغليف كراتين عريض", promoTheme: "from-amber-700 via-yellow-600 to-stone-800" },
+            { id: 113, name: "كشاف يدوي صغير", category: "11. اقتراحات إضافية مقترحة للكشك", selected: false, qty: 1, isSuggestion: true, promoBrand: "MINI FLASHLIGHT", promoSub: "كشاف جيب LED عملي", promoTheme: "from-slate-900 via-cyan-800 to-blue-700" },
+            { id: 114, name: "دباسة ورق وسط", category: "11. اقتراحات إضافية مقترحة للكشك", selected: false, qty: 1, isSuggestion: true, promoBrand: "STAPLER", promoSub: "دباسة مكتبية معدنية", promoTheme: "from-blue-800 via-slate-800 to-zinc-700" },
+            { id: 115, name: "أقلام سبورة (ماركر)", category: "11. اقتراحات إضافية مقترحة للكشك", selected: false, qty: 1, isSuggestion: true, promoBrand: "WHITEBOARD MARKER", promoSub: "أقلام سبورة قابلة للمسح", promoTheme: "from-indigo-700 via-blue-600 to-emerald-600" },
+            { id: 116, name: "أربطة مطاطية (مغاط فلوس)", category: "11. اقتراحات إضافية مقترحة للكشك", selected: false, qty: 1, isSuggestion: true, promoBrand: "RUBBER BANDS", promoSub: "كيس مغاط ربط نقود وأغراض", promoTheme: "from-amber-600 via-orange-600 to-red-700" },
+            { id: 117, name: "مناديل جيب / معطرة", category: "11. اقتراحات إضافية مقترحة للكشك", selected: false, qty: 1, isSuggestion: true, promoBrand: "POCKET TISSUES", promoSub: "باكت مناديل جيب ومعطرة", promoTheme: "from-sky-600 via-teal-500 to-emerald-600" },
+            { id: 118, name: "أعواد أسنان علبة", category: "11. اقتراحات إضافية مقترحة للكشك", selected: false, qty: 1, isSuggestion: true, promoBrand: "TOOTHPICKS", promoSub: "علبة أعواد أسنان خشب", promoTheme: "from-amber-700 via-emerald-700 to-stone-800" },
+            { id: 119, name: "سلك شاحن جوال (ايفون / تايب سي)", category: "11. اقتراحات إضافية مقترحة للكشك", selected: false, qty: 1, isSuggestion: true, promoBrand: "FAST CHARGING CABLE", promoSub: "كيبل شحن سريع للسيارة والجوال", promoTheme: "from-zinc-900 via-blue-800 to-cyan-600" }
+        ];
+
+        let items = [];
+        let currentIndex = 0;
+        let currentView = "cards";
+        let catalogStatusFilter = "ALL";
+        let lastUploadedShelfImage = "";
+        let barChartInstance = null;
+        let donutChartInstance = null;
+        const STORAGE_KEY = "kiosk_riyals_amjad_v7";
+
+        function initApp() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+                        items = parsed.items;
+                        currentIndex = typeof parsed.currentIndex === 'number' ? parsed.currentIndex : 0;
+                        lastUploadedShelfImage = parsed.lastUploadedShelfImage || "";
+                        populateCategoryDropdown();
+                        renderCurrentCard();
+                        return;
+                    }
+                }
+            } catch (e) {}
+            items = JSON.parse(JSON.stringify(initialItemsData));
+            currentIndex = 0;
+            populateCategoryDropdown();
+            renderCurrentCard();
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, currentIndex, lastUploadedShelfImage }));
+            } catch (e) {
+                showToast("تنبيه: مساحة التخزين ممتلئة");
+            }
+        }
+
+        function switchView(viewName) {
+            currentView = viewName;
+            ["cards", "catalog", "analytics"].forEach(v => {
+                const section = document.getElementById("view-" + v);
+                const btn = document.getElementById("navBtn-" + v);
+                if (v === viewName) {
+                    section.classList.remove("hidden");
+                    btn.className = "py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition bg-white text-emerald-700 shadow-xs";
+                } else {
+                    section.classList.add("hidden");
+                    btn.className = "py-2 px-2 rounded-xl text-xs sm:text-sm font-extrabold transition text-stone-600 hover:text-stone-900";
+                }
+            });
+
+            if (viewName === "cards") renderCurrentCard();
+            if (viewName === "catalog") renderCatalog();
+            if (viewName === "analytics") renderAnalytics();
+        }
+
+        function resetAll() {
+            currentIndex = 0;
+            saveState();
+            switchView("cards");
+            showToast("تمت العودة لأول صنف");
+        }
+
+        function renderCurrentCard() {
+            const stage = document.getElementById("cardStage");
+            const actionButtons = document.getElementById("actionButtonsContainer");
+            const prevBtn = document.getElementById("prevBtn");
+            const progressCounter = document.getElementById("progressCounter");
+            const categoryBadge = document.getElementById("categoryBadge");
+            const progressBar = document.getElementById("progressBar");
+            const progressPercentText = document.getElementById("progressPercentText");
+
+            updateSelectedBadge();
+            prevBtn.disabled = currentIndex === 0;
+
+            if (currentIndex >= items.length) {
+                progressCounter.textContent = `اكتملت المراجعة (${items.length} صنف)`;
+                categoryBadge.textContent = "تم الانتهاء";
+                progressBar.style.width = "100%";
+                progressPercentText.textContent = "100%";
+                actionButtons.classList.add("hidden");
+
+                const selectedCount = items.filter(i => i.selected).length;
+                stage.innerHTML = `
+                    <div class="card-animate bg-white rounded-[2.2rem] border-2 border-emerald-200 shadow-lg p-6 sm:p-8 h-full flex flex-col items-center justify-center text-center">
+                        <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-3xl font-black mb-4">✓</div>
+                        <h2 class="text-2xl sm:text-3xl font-black text-stone-900 mb-2">انتهت جميع الأصناف!</h2>
+                        <p class="text-base sm:text-lg text-stone-600 font-bold mb-6">تم اختيار <span class="text-emerald-600 text-2xl font-black">${selectedCount}</span> صنف للطلبية</p>
+                        
+                        <div class="w-full max-w-sm space-y-2.5">
+                            <button type="button" onclick="sendWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white py-3.5 px-6 rounded-2xl font-black text-lg shadow-md transition">
+                                💬 إرسال واتساب الآن
+                            </button>
+                            <button type="button" onclick="switchView('analytics')" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 py-3 px-6 rounded-2xl font-extrabold text-sm transition">
+                                📊 عرض تحليل الطلبية
+                            </button>
+                            <button type="button" onclick="goToIndex(0)" class="w-full text-stone-500 hover:text-stone-800 py-2 font-bold text-sm">
+                                العودة لأول صنف
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            actionButtons.classList.remove("hidden");
+            const item = items[currentIndex];
+            const percent = Math.round(((currentIndex + 1) / items.length) * 100);
+            
+            progressCounter.textContent = `صنف ${currentIndex + 1} من ${items.length}`;
+            categoryBadge.textContent = item.category;
+            progressBar.style.width = `${percent}%`;
+            progressPercentText.textContent = `${percent}%`;
+
+            let variantsHtml = "";
+            if (item.variants && item.variants.length > 0) {
+                const selectedVars = item.selectedVariants || [];
+                variantsHtml = `
+                    <div class="w-full max-w-md my-2 bg-stone-50 border border-stone-200 rounded-2xl p-2.5">
+                        <div class="text-xs font-extrabold text-stone-600 mb-1.5">${item.variantLabel || 'اختر اللون أو النوع:'}</div>
+                        <div class="flex flex-wrap items-center justify-center gap-1.5">
+                            ${item.variants.map(v => {
+                                const isVarSelected = selectedVars.includes(v);
+                                return `
+                                    <button type="button" onclick="toggleVariant('${v.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm transition active:scale-95 border-2 ${
+                                        isVarSelected 
+                                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs' 
+                                        : 'bg-white text-stone-700 border-stone-300 hover:border-emerald-400'
+                                    }">
+                                        ${isVarSelected ? '✓ ' : ''}${v}
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            stage.innerHTML = `
+                <div class="card-animate bg-white rounded-[2.2rem] border-2 ${item.selected ? 'border-emerald-400 bg-emerald-50/15' : 'border-stone-200'} shadow-lg p-4 sm:p-6 h-full flex flex-col items-center justify-between text-center relative">
+                    <div class="w-full flex items-center justify-between">
+                        <span class="text-xs font-bold text-stone-400">#${currentIndex + 1}</span>
+                        <div class="flex items-center gap-1.5">
+                            ${item.isSuggestion ? `<span class="bg-amber-100 text-amber-800 text-xs font-extrabold px-2.5 py-0.5 rounded-full">💡 اقتراح للكشك</span>` : ''}
+                            ${item.selected 
+                                ? `<span class="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-3 py-0.5 rounded-full">✓ محدد</span>` 
+                                : `<span class="bg-stone-100 text-stone-500 text-xs font-bold px-3 py-0.5 rounded-full">غير محدد</span>`
+                            }
+                        </div>
+                    </div>
+
+                    ${item.shelfImage ? `
+                        <div onclick="openShelfPhotoModal()" class="relative w-full max-w-sm h-32 sm:h-40 my-1 rounded-2xl overflow-hidden border-2 border-stone-200 bg-stone-900 shadow-sm cursor-pointer shrink-0">
+                            <img src="${item.shelfImage}" class="w-full h-full object-contain">
+                            ${(typeof item.pinX === 'number' && typeof item.pinY === 'number') ? `
+                                <div style="left: ${item.pinX}%; top: ${item.pinY}%;" class="absolute w-7 h-7 rounded-full bg-red-600/85 border-4 border-white shadow-md shelf-pin"></div>
+                            ` : ''}
+                            <span class="absolute bottom-1 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">صورة المنتج</span>
+                        </div>
+                    ` : `
+                        <div onclick="openShelfPhotoModal()" class="relative w-full max-w-sm py-2.5 px-4 my-1 rounded-2xl bg-gradient-to-br ${item.promoTheme || 'from-stone-800 via-stone-700 to-emerald-800'} text-white shadow-md overflow-hidden cursor-pointer shrink-0 border border-white/20">
+                            <div class="promo-card-shine absolute inset-0 pointer-events-none"></div>
+                            <div class="relative z-10 flex items-center justify-between gap-2 text-right">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-[10px] font-black tracking-wider uppercase text-white/80 truncate">${item.promoBrand || item.category}</div>
+                                    <div class="text-xs sm:text-sm font-extrabold text-white truncate mt-0.5">${item.promoSub || item.name}</div>
+                                </div>
+                                ${item.promoBadge ? `
+                                    <span class="shrink-0 bg-white/20 border border-white/30 text-white text-[10px] font-black px-2 py-0.5 rounded-lg">
+                                        ${item.promoBadge}
+                                    </span>
+                                ` : `
+                                    <span class="shrink-0 w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-base">📦</span>
+                                `}
+                            </div>
+                        </div>
+                    `}
+
+                    <div class="my-auto px-2 w-full flex flex-col items-center justify-center">
+                        <h2 class="text-2xl sm:text-4xl font-black text-stone-900 leading-snug break-words">
+                            ${item.name}
+                        </h2>
+                        ${variantsHtml}
+                    </div>
+
+                    <div class="flex items-center gap-3 bg-stone-100 px-4 py-1.5 rounded-2xl border border-stone-200">
+                        <span class="text-xs sm:text-sm font-extrabold text-stone-600">الكمية:</span>
+                        <button type="button" onclick="changeCurrentQty(-1)" class="w-9 h-9 rounded-xl bg-white hover:bg-stone-200 active:scale-90 text-stone-800 font-black text-lg shadow-xs flex items-center justify-center">-</button>
+                        <span class="w-9 text-center text-xl font-black text-emerald-700">${item.qty}</span>
+                        <button type="button" onclick="changeCurrentQty(1)" class="w-9 h-9 rounded-xl bg-white hover:bg-stone-200 active:scale-90 text-emerald-700 font-black text-lg shadow-xs flex items-center justify-center">+</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleVariant(variantName) {
+            if (currentIndex >= items.length) return;
+            const item = items[currentIndex];
+            if (!item.selectedVariants) item.selectedVariants = [];
+            
+            const idx = item.selectedVariants.indexOf(variantName);
+            if (idx > -1) {
+                item.selectedVariants.splice(idx, 1);
+            } else {
+                item.selectedVariants.push(variantName);
+                item.selected = true;
+            }
+            saveState();
+            renderCurrentCard();
+        }
+
+        function chooseNeed(isNeeded) {
+            if (currentIndex >= items.length) return;
+            const item = items[currentIndex];
+            item.selected = isNeeded;
+            if (isNeeded && item.qty < 1) item.qty = 1;
+            currentIndex++;
+            saveState();
+            renderCurrentCard();
+        }
+
+        function changeCurrentQty(delta) {
+            if (currentIndex >= items.length) return;
+            const item = items[currentIndex];
+            item.qty = Math.max(1, item.qty + delta);
+            saveState();
+            renderCurrentCard();
+        }
+
+        function prevItem() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                saveState();
+                renderCurrentCard();
+            }
+        }
+
+        function goToIndex(idx) {
+            currentIndex = idx;
+            saveState();
+            switchView("cards");
+        }
+
+        function updateSelectedBadge() {
+            const count = items.filter(i => i.selected).length;
+            document.getElementById("selectedCountBadge").textContent = count;
+        }
+
+        // قسم القائمة المرتبة والتصفية
+        function populateCategoryDropdown() {
+            const select = document.getElementById("catalogCategoryFilter");
+            const categories = [...new Set(items.map(i => i.category))];
+            select.innerHTML = `<option value="ALL">جميع الفئات (${categories.length} فئات)</option>` +
+                categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
+        function setCatalogStatusFilter(status) {
+            catalogStatusFilter = status;
+            ["ALL", "SELECTED", "UNSELECTED"].forEach(s => {
+                const btn = document.getElementById("filterStatus-" + s);
+                if (s === status) {
+                    btn.className = "px-3 py-1.5 rounded-xl text-xs font-extrabold bg-stone-800 text-white";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-xl text-xs font-extrabold bg-stone-100 text-stone-700";
+                }
+            });
+            renderCatalog();
+        }
+
+        function renderCatalog() {
+            const query = (document.getElementById("catalogSearch").value || "").trim().toLowerCase();
+            const catFilter = document.getElementById("catalogCategoryFilter").value;
+            const container = document.getElementById("catalogContainer");
+
+            const filtered = items.map((item, idx) => ({ item, idx })).filter(({ item }) => {
+                const matchSearch = !query || item.name.toLowerCase().includes(query) || (item.promoBrand && item.promoBrand.toLowerCase().includes(query));
+                const matchCat = catFilter === "ALL" || item.category === catFilter;
+                const matchStatus = catalogStatusFilter === "ALL" || (catalogStatusFilter === "SELECTED" && item.selected) || (catalogStatusFilter === "UNSELECTED" && !item.selected);
+                return matchSearch && matchCat && matchStatus;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="bg-white rounded-3xl p-8 text-center text-stone-500 font-bold border border-stone-200">لا توجد أصناف مطابقة لخيارات البحث</div>`;
+                return;
+            }
+
+            const grouped = {};
+            filtered.forEach(entry => {
+                if (!grouped[entry.item.category]) grouped[entry.item.category] = [];
+                grouped[entry.item.category].push(entry);
+            });
+
+            container.innerHTML = Object.entries(grouped).map(([category, entries]) => `
+                <div class="bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-xs">
+                    <div class="bg-stone-50 px-4 py-3 border-b border-stone-200 flex items-center justify-between">
+                        <h3 class="font-black text-sm sm:text-base text-stone-800">${category}</h3>
+                        <span class="text-xs font-extrabold bg-stone-200 text-stone-700 px-2.5 py-0.5 rounded-full">${entries.length} صنف</span>
+                    </div>
+                    <div class="divide-y divide-stone-100">
+                        ${entries.map(({ item, idx }) => `
+                            <div class="p-3 sm:p-3.5 flex flex-col gap-2 ${item.selected ? 'bg-emerald-50/30' : ''}">
+                                <div class="flex items-center justify-between gap-2">
+                                    <button type="button" onclick="toggleCatalogItem(${idx})" class="flex items-center gap-3 text-right flex-1 min-w-0">
+                                        <span class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center font-black text-sm border-2 ${item.selected ? 'bg-emerald-600 border-emerald-700 text-white' : 'bg-white border-stone-300 text-transparent'}">✓</span>
+                                        <div class="min-w-0">
+                                            <div class="font-extrabold text-sm sm:text-base text-stone-900 truncate">${item.name}</div>
+                                            ${item.isSuggestion ? `<span class="text-[11px] font-bold text-amber-700">💡 اقتراح إضافي للكشك</span>` : ''}
+                                        </div>
+                                    </button>
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        ${item.selected ? `
+                                            <div class="flex items-center gap-1 bg-white border border-stone-200 rounded-xl px-1.5 py-1">
+                                                <button type="button" onclick="changeCatalogQty(${idx}, -1)" class="w-6 h-6 rounded-lg bg-stone-100 font-black text-sm">-</button>
+                                                <span class="w-6 text-center text-sm font-black text-emerald-700">${item.qty}</span>
+                                                <button type="button" onclick="changeCatalogQty(${idx}, 1)" class="w-6 h-6 rounded-lg bg-stone-100 font-black text-sm text-emerald-700">+</button>
+                                            </div>
+                                        ` : ''}
+                                        <button type="button" onclick="goToIndex(${idx})" class="px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-bold" title="فتح في الجرد السريع">بطاقة</button>
+                                    </div>
+                                </div>
+                                ${item.variants && item.variants.length > 0 ? `
+                                    <div class="flex flex-wrap items-center gap-1.5 pr-10">
+                                        ${item.variants.map(v => {
+                                            const active = (item.selectedVariants || []).includes(v);
+                                            return `<button type="button" onclick="toggleCatalogVariant(${idx}, '${v.replace(/'/g, "\\'")}')" class="px-2.5 py-1 rounded-lg text-xs font-extrabold border ${active ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-stone-50 text-stone-600 border-stone-200'}">${active ? '✓ ' : ''}${v}</button>`;
+                                        }).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleCatalogItem(idx) {
+            items[idx].selected = !items[idx].selected;
+            saveState();
+            updateSelectedBadge();
+            renderCatalog();
+        }
+
+        function changeCatalogQty(idx, delta) {
+            items[idx].qty = Math.max(1, items[idx].qty + delta);
+            saveState();
+            renderCatalog();
+        }
+
+        function toggleCatalogVariant(idx, variantName) {
+            const item = items[idx];
+            if (!item.selectedVariants) item.selectedVariants = [];
+            const vIdx = item.selectedVariants.indexOf(variantName);
+            if (vIdx > -1) {
+                item.selectedVariants.splice(vIdx, 1);
+            } else {
+                item.selectedVariants.push(variantName);
+                item.selected = true;
+            }
+            saveState();
+            updateSelectedBadge();
+            renderCatalog();
+        }
+
+        // قسم التحليل والرسوم البيانية (Chart.js Canvas)
+        function wrapLabel(label) {
+            if (label.length <= 16) return label;
+            const words = label.split(' ');
+            const lines = [];
+            let current = '';
+            words.forEach(word => {
+                if ((current + ' ' + word).trim().length <= 16) {
+                    current = (current + ' ' + word).trim();
+                } else {
+                    if (current) lines.push(current);
+                    current = word;
+                }
+            });
+            if (current) lines.push(current);
+            return lines;
+        }
+
+        function renderAnalytics() {
+            const totalItems = items.length;
+            const selectedItems = items.filter(i => i.selected);
+            const totalQty = selectedItems.reduce((sum, i) => sum + (i.qty || 1), 0);
+
+            document.getElementById("statTotalItems").textContent = totalItems;
+            document.getElementById("statSelectedItems").textContent = selectedItems.length;
+            document.getElementById("statTotalQty").textContent = totalQty;
+
+            const categories = [...new Set(items.map(i => i.category))];
+            const shortLabels = categories.map(c => wrapLabel(c.replace(/^\d+\.\s*/, '')));
+            const selectedCounts = categories.map(c => items.filter(i => i.category === c && i.selected).length);
+            const remainingCounts = categories.map(c => items.filter(i => i.category === c && !i.selected).length);
+
+            const barCtx = document.getElementById("categoryBarChart").getContext("2d");
+            if (barChartInstance) barChartInstance.destroy();
+            barChartInstance = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: shortLabels,
+                    datasets: [
+                        {
+                            label: 'مطلوب للطلبية',
+                            data: selectedCounts,
+                            backgroundColor: '#059669',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'غير مطلوب',
+                            data: remainingCounts,
+                            backgroundColor: '#e7e5e4',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { family: 'Tajawal', weight: 'bold' } } },
+                        tooltip: {
+                            callbacks: {
+                                title: (ctx) => categories[ctx[0].dataIndex]
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, ticks: { font: { family: 'Tajawal', size: 10, weight: 'bold' } } },
+                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 5, font: { family: 'Tajawal' } } }
+                    }
+                }
+            });
+
+            const donutCtx = document.getElementById("statusDonutChart").getContext("2d");
+            if (donutChartInstance) donutChartInstance.destroy();
+            donutChartInstance = new Chart(donutCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['أصناف مطلوبة', 'أصناف متوفرة (غير مطلوبة)'],
+                    datasets: [{
+                        data: [selectedItems.length, totalItems - selectedItems.length],
+                        backgroundColor: ['#059669', '#d6d3d1'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: 'Tajawal', weight: 'bold', size: 12 } } }
+                    }
+                }
+            });
+        }
+
+        // توليد نص الطلبية بالصيغة المطلوبة
+        function generateFormattedText() {
+            const selectedItems = items.filter(i => i.selected);
+            if (selectedItems.length === 0) return "";
+
+            let text = `طلبية خردوات كشك ريال قرينز/أمجد\n`;
+            text += `──────────────────\n`;
+            
+            selectedItems.forEach((item, index) => {
+                const varsText = (item.selectedVariants && item.selectedVariants.length > 0) 
+                    ? ` [${item.selectedVariants.join("، ")}]` 
+                    : "";
+                const qtyText = item.qty > 1 ? ` (العدد: ${item.qty})` : "";
+                text += `${index + 1}- ${item.name}${varsText}${qtyText}\n`;
+            });
+
+            return text.trim();
+        }
+
+        function openPreviewModal() {
+            const text = generateFormattedText();
+            if (!text) {
+                showToast("لم تقم باختيار أي صنف بعد!");
+                return;
+            }
+            document.getElementById("previewTextArea").value = text;
+            document.getElementById("previewModal").classList.remove("hidden");
+        }
+
+        function closePreviewModal() {
+            document.getElementById("previewModal").classList.add("hidden");
+        }
+
+        function copyFromPreview() {
+            const area = document.getElementById("previewTextArea");
+            area.select();
+            try {
+                document.execCommand("copy");
+                showToast("تم نسخ الطلبية بنجاح");
+            } catch (e) {
+                showToast("تعذر النسخ، انسخ النص يدوياً");
+            }
+        }
+
+        function sendFromPreview() {
+            const text = document.getElementById("previewTextArea").value.trim();
+            if (!text) {
+                showToast("النص فارغ!");
+                return;
+            }
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+        }
+
+        function sendWhatsApp() {
+            const text = generateFormattedText();
+            if (!text) {
+                showToast("اختر صنفاً واحداً على الأقل أولاً");
+                return;
+            }
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+        }
+
+        function openAddModal() {
+            document.getElementById("newItemName").value = "";
+            document.getElementById("addItemModal").classList.remove("hidden");
+        }
+
+        function closeAddModal() {
+            document.getElementById("addItemModal").classList.add("hidden");
+        }
+
+        function addNewItem() {
+            const name = (document.getElementById("newItemName").value || "").trim();
+            const category = document.getElementById("newItemCategory").value;
+
+            if (!name) {
+                showToast("اكتب اسم الصنف أولاً");
+                return;
+            }
+
+            const newItem = {
+                id: Date.now(),
+                name,
+                category,
+                selected: true,
+                qty: 1,
+                promoBrand: category.replace(/^\d+\.\s*/, ''),
+                promoSub: name,
+                promoTheme: "from-emerald-700 via-teal-700 to-stone-800",
+                promoBadge: "جديد"
+            };
+
+            items.splice(currentIndex, 0, newItem);
+            saveState();
+            populateCategoryDropdown();
+            closeAddModal();
+            if (currentView === "cards") renderCurrentCard();
+            if (currentView === "catalog") renderCatalog();
+            if (currentView === "analytics") renderAnalytics();
+            updateSelectedBadge();
+            showToast("تمت إضافة الصنف للطلبية");
+        }
+
+        // إدارة صور الأرفف والقص التلقائي
+        function openShelfPhotoModal() {
+            if (currentIndex >= items.length) return;
+            const item = items[currentIndex];
+            document.getElementById("shelfModalItemName").textContent = item.name;
+            
+            const wrapper = document.getElementById("shelfImagePreviewWrapper");
+            const img = document.getElementById("shelfPreviewImg");
+            const pin = document.getElementById("shelfPreviewPin");
+            const hint = document.getElementById("shelfTapHint");
+            const useLastBtn = document.getElementById("useLastShelfBtn");
+
+            if (lastUploadedShelfImage && item.shelfImage !== lastUploadedShelfImage) {
+                useLastBtn.classList.remove("hidden");
+            } else {
+                useLastBtn.classList.add("hidden");
+            }
+
+            if (item.shelfImage) {
+                img.src = item.shelfImage;
+                wrapper.classList.remove("hidden");
+                hint.classList.remove("hidden");
+                if (typeof item.pinX === 'number' && typeof item.pinY === 'number') {
+                    pin.style.left = item.pinX + "%";
+                    pin.style.top = item.pinY + "%";
+                    pin.classList.remove("hidden");
+                } else {
+                    pin.classList.add("hidden");
+                }
+            } else {
+                wrapper.classList.add("hidden");
+                hint.classList.add("hidden");
+                pin.classList.add("hidden");
+            }
+
+            document.getElementById("shelfPhotoModal").classList.remove("hidden");
+        }
+
+        function closeShelfPhotoModal() {
+            document.getElementById("shelfPhotoModal").classList.add("hidden");
+            renderCurrentCard();
+        }
+
+        function handleShelfImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file || currentIndex >= items.length) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const tempImg = new Image();
+                tempImg.onload = function() {
+                    const canvas = document.createElement("canvas");
+                    const maxDim = 900;
+                    let w = tempImg.width;
+                    let h = tempImg.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                        else { w = Math.round(w * maxDim / h); h = maxDim; }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext("2d").drawImage(tempImg, 0, 0, w, h);
+                    const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.72);
+
+                    lastUploadedShelfImage = compressedDataUrl;
+                    const item = items[currentIndex];
+                    item.shelfImage = compressedDataUrl;
+                    delete item.pinX;
+                    delete item.pinY;
+
+                    let extractedCount = 0;
+                    items.forEach(it => {
+                        if (it.shelfCode === "shelf1" && it.cropBox) {
+                            const [x1, y1, x2, y2] = it.cropBox;
+                            const sx = Math.floor(x1 * w);
+                            const sy = Math.floor(y1 * h);
+                            const sw = Math.max(10, Math.floor((x2 - x1) * w));
+                            const sh = Math.max(10, Math.floor((y2 - y1) * h));
+
+                            const cropCanvas = document.createElement("canvas");
+                            cropCanvas.width = sw;
+                            cropCanvas.height = sh;
+                            cropCanvas.getContext("2d").drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+                            it.shelfImage = cropCanvas.toDataURL("image/jpeg", 0.85);
+                            delete it.pinX;
+                            delete it.pinY;
+                            extractedCount++;
+                        }
+                    });
+
+                    saveState();
+                    openShelfPhotoModal();
+                    showToast(`تم استخراج ${extractedCount} صنف تلقائياً`);
+                };
+                tempImg.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyLastShelfImage() {
+            if (!lastUploadedShelfImage || currentIndex >= items.length) return;
+            const item = items[currentIndex];
+            item.shelfImage = lastUploadedShelfImage;
+            saveState();
+            openShelfPhotoModal();
+        }
+
+        function setPinOnShelfImage(event) {
+            if (currentIndex >= items.length) return;
+            const rect = event.target.getBoundingClientRect();
+            const xPercent = Math.round(((event.clientX - rect.left) / rect.width) * 100);
+            const yPercent = Math.round(((event.clientY - rect.top) / rect.height) * 100);
+
+            const item = items[currentIndex];
+            item.pinX = xPercent;
+            item.pinY = yPercent;
+            saveState();
+
+            const pin = document.getElementById("shelfPreviewPin");
+            pin.style.left = xPercent + "%";
+            pin.style.top = yPercent + "%";
+            pin.classList.remove("hidden");
+            showToast("تم تحديد مكان الصنف");
+        }
+
+        function removeShelfImageFromItem() {
+            if (currentIndex >= items.length) return;
+            const item = items[currentIndex];
+            delete item.shelfImage;
+            delete item.pinX;
+            delete item.pinY;
+            saveState();
+            closeShelfPhotoModal();
+        }
+
+        let toastTimer;
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            document.getElementById("toastMessage").textContent = msg;
+            toast.classList.remove("opacity-0", "translate-y-[-10px]");
+            toast.classList.add("opacity-100", "translate-y-0");
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove("opacity-100", "translate-y-0");
+                toast.classList.add("opacity-0", "translate-y-[-10px]");
+            }, 2200);
+        }
+
+        window.addEventListener("DOMContentLoaded", initApp);
+
+        // إعداد أيقونة PNG عبر Canvas وتفعيل PWA
+        let deferredPrompt = null;
+        function setupPWA() {
+            const c = document.createElement("canvas");
+            c.width = 192;
+            c.height = 192;
+            const ctx = c.getContext("2d");
+            ctx.fillStyle = "#059669";
+            ctx.fillRect(0, 0, 192, 192);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 18;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(52, 100);
+            ctx.lineTo(82, 130);
+            ctx.lineTo(142, 66);
+            ctx.stroke();
+            const pngIconUrl = c.toDataURL("image/png");
+
+            const manifest = {
+                name: "طلبية خردوات كشك ريال قرينز/أمجد",
+                short_name: "طلبية الكشك",
+                start_url: window.location.href,
+                display: "standalone",
+                background_color: "#f5f5f4",
+                theme_color: "#059669",
+                icons: [
+                    { src: pngIconUrl, sizes: "192x192", type: "image/png" },
+                    { src: pngIconUrl, sizes: "512x512", type: "image/png" }
+                ]
+            };
+
+            try {
+                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+                const manifestLink = document.createElement("link");
+                manifestLink.rel = "manifest";
+                manifestLink.href = URL.createObjectURL(manifestBlob);
+                document.head.appendChild(manifestLink);
+            } catch (e) {}
+
+            if ("serviceWorker" in navigator && (window.location.protocol === "https:" || window.location.hostname === "localhost")) {
+                const swCode = `self.addEventListener('fetch', function(event) {});`;
+                const swBlob = new Blob([swCode], { type: "application/javascript" });
+                navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+            }
+        }
+
+        window.addEventListener("beforeinstallprompt", (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const btn = document.getElementById("installAppBtn");
+            if (btn) btn.classList.remove("hidden");
+        });
+
+        async function installPWA() {
+            if (!deferredPrompt) {
+                showToast("من قائمة كروم (⋮) اختر: الإضافة إلى الشاشة الرئيسية");
+                return;
+            }
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === "accepted") {
+                showToast("جاري تثبيت التطبيق...");
+                document.getElementById("installAppBtn").classList.add("hidden");
+            }
+            deferredPrompt = null;
+        }
+
+        setupPWA();
+    </script>
+</body>
+</html>
